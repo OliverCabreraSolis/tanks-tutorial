@@ -1,4 +1,6 @@
 ﻿using UnityEngine;
+using UnityEngine.SceneManagement;
+
 
 public class TankMovement : MonoBehaviour
 {
@@ -46,17 +48,18 @@ public class TankMovement : MonoBehaviour
 
         m_OriginalPitch = m_MovementAudio.pitch; //Ses ayari
     }
-    
+
 
     private void Update()
     {
-        // Store the player's input and make sure the audio for the engine is playing.
-        m_MovementInputValue = Input.GetAxis (m_MovementAxisName);
-        m_TurnInputValue = Input.GetAxis (m_TurnAxisName);
+        // 🛠️ LINEA NUEVA: Fuerza a que las físicas NUNCA se apaguen
+        m_Rigidbody.isKinematic = false;
+
+        m_MovementInputValue = Input.GetAxis(m_MovementAxisName);
+        m_TurnInputValue = Input.GetAxis(m_TurnAxisName);
 
         EngineAudio();
     }
-
 
     private void EngineAudio()
     {
@@ -92,11 +95,17 @@ public class TankMovement : MonoBehaviour
 
     private void Move()
     {
-        // Adjust the position of the tank based on the player's input.
-        Vector3 movement = transform.forward * m_MovementInputValue * m_Speed * Time.deltaTime; //movement Vectorune transform.forward * m_MovementInputValue * m_Speed * Time.deltaTime degiskenleri eklenir bu da Vectorun Z ekseninde bir artis gerceklestirir
-        //.MovePosition Rigidbody bilesenlerinin dogrudan degil daha stabil ve yumusak hareket etmesini saglayan Unity fonksiyonudur
-        m_Rigidbody.MovePosition(m_Rigidbody.position + movement); //Objenin rigidbody bilesenini movement Vector3 u yonunde yumusak bir sekilde hareket ettiren komut
+        // Cambiamos linearVelocity por velocity
+        Vector3 velocity = transform.forward * m_MovementInputValue * m_Speed;
+
+        // CORRECCIÓN AQUÍ: Cambiar m_Rigidbody.linearVelocity.y por m_Rigidbody.velocity.y
+        velocity.y = m_Rigidbody.velocity.y;
+
+        // CORRECCIÓN AQUÍ: Cambiar m_Rigidbody.linearVelocity por m_Rigidbody.velocity
+        m_Rigidbody.velocity = velocity;
     }
+
+
 
 
     private void Turn()
