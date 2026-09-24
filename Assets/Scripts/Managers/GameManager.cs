@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 //using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -20,16 +20,117 @@ public class GameManager : MonoBehaviour
     private TankManager m_RoundWinner;
     private TankManager m_GameWinner;       
 
+    // --- Variables de UI ---
+    private int m_NumPlayers = 4;
+    private Color[] m_AvailableColors = { Color.red, Color.blue, Color.green, Color.yellow, Color.magenta, Color.cyan };
+    private int[] m_SelectedColors = { 0, 1, 2, 3 };
+    private int[] m_SelectedTypes = { 0, 0, 0, 0 };
+    private string[] m_TypeNames = { "Normal", "Rapido", "Pesado" };
+    private bool m_MenuOpen = true;
+
 
     private void Start()
     {
         m_StartWait = new WaitForSeconds(m_StartDelay);
         m_EndWait = new WaitForSeconds(m_EndDelay);
+        // El juego ahora espera a que el jugador configure la partida
+    }
+
+    private void OnGUI()
+    {
+        if (!m_MenuOpen) return;
+
+        int width = 400;
+        int height = 350;
+        GUILayout.BeginArea(new Rect((Screen.width - width) / 2, (Screen.height - height) / 2, width, height), GUI.skin.box);
+        GUILayout.Label("Configuracion de Partida", new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fontSize = 20 });
+
+        GUILayout.Space(10);
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Jugadores: " + m_NumPlayers);
+        if (GUILayout.Button("-", GUILayout.Width(30))) m_NumPlayers = Mathf.Max(2, m_NumPlayers - 1);
+        if (GUILayout.Button("+", GUILayout.Width(30))) m_NumPlayers = Mathf.Min(4, m_NumPlayers + 1);
+        GUILayout.EndHorizontal();
+
+        for (int i = 0; i < m_NumPlayers; i++)
+        {
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Jugador " + (i + 1), GUILayout.Width(80));
+            if (GUILayout.Button("Color: " + GetColorName(m_SelectedColors[i]), GUILayout.Width(120)))
+            {
+                m_SelectedColors[i] = (m_SelectedColors[i] + 1) % m_AvailableColors.Length;
+            }
+            if (GUILayout.Button("Tipo: " + m_TypeNames[m_SelectedTypes[i]], GUILayout.Width(120)))
+            {
+                m_SelectedTypes[i] = (m_SelectedTypes[i] + 1) % m_TypeNames.Length;
+            }
+            GUILayout.EndHorizontal();
+        }
+
+        GUILayout.Space(20);
+        if (GUILayout.Button("¡INICIAR JUEGO!", GUILayout.Height(50)))
+        {
+            m_MenuOpen = false;
+            StartGame();
+        }
+        GUILayout.EndArea();
+    }
+
+    private string GetColorName(int index) {
+        switch(index) {
+            case 0: return "Rojo";
+            case 1: return "Azul";
+            case 2: return "Verde";
+            case 3: return "Amarillo";
+            case 4: return "Magenta";
+            case 5: return "Cyan";
+            default: return "Otro";
+        }
+    }
+
+    private void StartGame()
+    {
+        TankManager[] newTanks = new TankManager[m_NumPlayers];
+        for (int i = 0; i < m_NumPlayers; i++) {
+            newTanks[i] = new TankManager();
+            newTanks[i].m_PlayerColor = m_AvailableColors[m_SelectedColors[i]];
+            newTanks[i].m_PlayerNumber = i + 1;
+            
+            if (i < m_Tanks.Length && m_Tanks[i] != null && m_Tanks[i].m_SpawnPoint != null) {
+                newTanks[i].m_SpawnPoint = m_Tanks[i].m_SpawnPoint;
+            } else {
+                GameObject sp = new GameObject("SpawnPoint" + (i + 1));
+                sp.transform.position = new Vector3(Mathf.Cos(i * Mathf.PI/2) * 10, 0, Mathf.Sin(i * Mathf.PI/2) * 10);
+                sp.transform.rotation = Quaternion.LookRotation(Vector3.zero - sp.transform.position);
+                newTanks[i].m_SpawnPoint = sp.transform;
+            }
+        }
+        m_Tanks = newTanks;
 
         SpawnAllTanks();
+        ApplyTankTypes();
         SetCameraTargets();
 
         StartCoroutine(GameLoop());
+    }
+
+    private void ApplyTankTypes()
+    {
+        for (int i = 0; i < m_NumPlayers; i++) {
+            TankMovement movement = m_Tanks[i].m_Instance.GetComponent<TankMovement>();
+            TankHealth health = m_Tanks[i].m_Instance.GetComponent<TankHealth>();
+            TankShooting shooting = m_Tanks[i].m_Instance.GetComponent<TankShooting>();
+
+            int type = m_SelectedTypes[i];
+            if (type == 1) { // Rapido
+                movement.m_Speed = 18f; 
+                health.m_StartingHealth = 70f; 
+            } else if (type == 2) { // Pesado
+                movement.m_Speed = 8f;
+                health.m_StartingHealth = 150f;
+                shooting.m_MaxLaunchForce = 40f; 
+            }
+        }
     }
 
 

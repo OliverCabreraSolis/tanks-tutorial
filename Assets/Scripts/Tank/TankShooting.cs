@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 
 public class TankShooting : MonoBehaviour
@@ -36,6 +36,30 @@ public class TankShooting : MonoBehaviour
     }
     
 
+    private bool GetFireDown()
+    {
+        if (m_PlayerNumber <= 2) return Input.GetButtonDown(m_FireButton);
+        if (m_PlayerNumber == 3) return Input.GetKeyDown(KeyCode.RightShift);
+        if (m_PlayerNumber == 4) return Input.GetKeyDown(KeyCode.KeypadEnter);
+        return false;
+    }
+    
+    private bool GetFire()
+    {
+        if (m_PlayerNumber <= 2) return Input.GetButton(m_FireButton);
+        if (m_PlayerNumber == 3) return Input.GetKey(KeyCode.RightShift);
+        if (m_PlayerNumber == 4) return Input.GetKey(KeyCode.KeypadEnter);
+        return false;
+    }
+
+    private bool GetFireUp()
+    {
+        if (m_PlayerNumber <= 2) return Input.GetButtonUp(m_FireButton);
+        if (m_PlayerNumber == 3) return Input.GetKeyUp(KeyCode.RightShift);
+        if (m_PlayerNumber == 4) return Input.GetKeyUp(KeyCode.KeypadEnter);
+        return false;
+    }
+
     private void Update()
     {
         // Track the current state of the fire button and make decisions based on the current launch force.
@@ -45,18 +69,18 @@ public class TankShooting : MonoBehaviour
         {
             m_CurrentLaunchForce = m_MaxLaunchForce;
             Fire();
-        }else if(Input.GetButtonDown(m_FireButton))
+        }else if(GetFireDown())
         {
             m_Fired = false;
             m_CurrentLaunchForce = m_MinLaunchForce;
 
             m_ShootingAudio.clip = m_ChargingClip;
             m_ShootingAudio.Play();
-        }else if(Input.GetButton(m_FireButton) && !m_Fired)
+        }else if(GetFire() && !m_Fired)
         {
             m_CurrentLaunchForce += m_ChargeSpeed * Time.deltaTime;
             m_AimSlider.value = m_CurrentLaunchForce;
-        }else if(Input.GetButtonUp(m_FireButton) && !m_Fired)
+        }else if(GetFireUp() && !m_Fired)
         {
             Fire();
         }

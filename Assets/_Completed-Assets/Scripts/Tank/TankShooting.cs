@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace Complete
@@ -40,9 +40,46 @@ namespace Complete
             m_ChargeSpeed = (m_MaxLaunchForce - m_MinLaunchForce) / m_MaxChargeTime;
         }
 
+        public bool m_IsBot = false;
+        public bool m_BotFire = false;
+        private bool m_PrevBotFire = false;
+
+        private bool GetFireDown()
+        {
+            if (m_IsBot) return m_BotFire && !m_PrevBotFire;
+            if (m_PlayerNumber <= 2) return Input.GetButtonDown(m_FireButton);
+            if (m_PlayerNumber == 3) return Input.GetKeyDown(KeyCode.RightShift);
+            if (m_PlayerNumber == 4) return Input.GetKeyDown(KeyCode.KeypadEnter);
+            return false;
+        }
+        
+        private bool GetFire()
+        {
+            if (m_IsBot) return m_BotFire;
+            if (m_PlayerNumber <= 2) return Input.GetButton(m_FireButton);
+            if (m_PlayerNumber == 3) return Input.GetKey(KeyCode.RightShift);
+            if (m_PlayerNumber == 4) return Input.GetKey(KeyCode.KeypadEnter);
+            return false;
+        }
+
+        private bool GetFireUp()
+        {
+            if (m_IsBot) return !m_BotFire && m_PrevBotFire;
+            if (m_PlayerNumber <= 2) return Input.GetButtonUp(m_FireButton);
+            if (m_PlayerNumber == 3) return Input.GetKeyUp(KeyCode.RightShift);
+            if (m_PlayerNumber == 4) return Input.GetKeyUp(KeyCode.KeypadEnter);
+            return false;
+        }
 
         private void Update ()
         {
+            // Evaluate inputs based on current and previous bot fire state
+            bool fireDown = GetFireDown();
+            bool fire = GetFire();
+            bool fireUp = GetFireUp();
+            
+            // Save current bot fire state for next frame
+            if (m_IsBot) m_PrevBotFire = m_BotFire;
             // The slider should have a default value of the minimum launch force.
             m_AimSlider.value = m_MinLaunchForce;
 
@@ -54,7 +91,7 @@ namespace Complete
                 Fire ();
             }
             // Otherwise, if the fire button has just started being pressed...
-            else if (Input.GetButtonDown (m_FireButton))
+            else if (fireDown)
             {
                 // ... reset the fired flag and reset the launch force.
                 m_Fired = false;
@@ -65,7 +102,7 @@ namespace Complete
                 m_ShootingAudio.Play ();
             }
             // Otherwise, if the fire button is being held and the shell hasn't been launched yet...
-            else if (Input.GetButton (m_FireButton) && !m_Fired)
+            else if (fire && !m_Fired)
             {
                 // Increment the launch force and update the slider.
                 m_CurrentLaunchForce += m_ChargeSpeed * Time.deltaTime;
@@ -73,7 +110,7 @@ namespace Complete
                 m_AimSlider.value = m_CurrentLaunchForce;
             }
             // Otherwise, if the fire button is released and the shell hasn't been launched yet...
-            else if (Input.GetButtonUp (m_FireButton) && !m_Fired)
+            else if (fireUp && !m_Fired)
             {
                 // ... launch the shell.
                 Fire ();

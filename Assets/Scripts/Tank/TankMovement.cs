@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 
 
@@ -55,8 +55,21 @@ public class TankMovement : MonoBehaviour
         // 🛠️ LINEA NUEVA: Fuerza a que las físicas NUNCA se apaguen
         m_Rigidbody.isKinematic = false;
 
-        m_MovementInputValue = Input.GetAxis(m_MovementAxisName);
-        m_TurnInputValue = Input.GetAxis(m_TurnAxisName);
+        if (m_PlayerNumber <= 2)
+        {
+            m_MovementInputValue = Input.GetAxis(m_MovementAxisName);
+            m_TurnInputValue = Input.GetAxis(m_TurnAxisName);
+        }
+        else if (m_PlayerNumber == 3)
+        {
+            m_MovementInputValue = (Input.GetKey(KeyCode.I) ? 1f : 0f) - (Input.GetKey(KeyCode.K) ? 1f : 0f);
+            m_TurnInputValue = (Input.GetKey(KeyCode.L) ? 1f : 0f) - (Input.GetKey(KeyCode.J) ? 1f : 0f);
+        }
+        else if (m_PlayerNumber == 4)
+        {
+            m_MovementInputValue = (Input.GetKey(KeyCode.Keypad8) ? 1f : 0f) - (Input.GetKey(KeyCode.Keypad5) ? 1f : 0f);
+            m_TurnInputValue = (Input.GetKey(KeyCode.Keypad6) ? 1f : 0f) - (Input.GetKey(KeyCode.Keypad4) ? 1f : 0f);
+        }
 
         EngineAudio();
     }
