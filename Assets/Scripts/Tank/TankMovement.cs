@@ -5,12 +5,21 @@ using UnityEngine.SceneManagement;
 public class TankMovement : MonoBehaviour
 {
     public int m_PlayerNumber = 1; // (Degisken)       
-    public float m_Speed = 12f; // (Degisken)           
-    public float m_TurnSpeed = 180f; // (Degisken)      
+    public float m_Speed = 9.5f; // (Degisken)           
+    public float m_TurnSpeed = 145f; // (Degisken)      
     public AudioSource m_MovementAudio; //AudioSource bileseni  
     public AudioClip m_EngineIdling; //A.Clip bileseni      
     public AudioClip m_EngineDriving; //A.Clip bileseni     
     public float m_PitchRange = 0.2f; // (Degisken)
+
+    private float m_SpeedMultiplier = 1f;
+    private float m_SpeedBoostTimer = 0f;
+
+    public void ApplySpeedBoost(float multiplier, float duration)
+    {
+        m_SpeedMultiplier = multiplier;
+        m_SpeedBoostTimer = duration;
+    }
 
     
     private string m_MovementAxisName; // (Degisken)    
@@ -30,8 +39,16 @@ public class TankMovement : MonoBehaviour
     private void OnEnable () //Obje etkin oldugunda calisicak fonksiyon
     {
         m_Rigidbody.isKinematic = false; //Objenin fizik motoru tarafindan algilanmasini saglar
+        m_Rigidbody.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         m_MovementInputValue = 0f; //Degiskene 0 float degeri tanimlanmis
         m_TurnInputValue = 0f; //Degiskene 0 float degeri tanimlanmis
+
+        ParticleSystem[] psList = GetComponentsInChildren<ParticleSystem>();
+        for (int i = 0; i < psList.Length; i++)
+        {
+            MaterialHelper.FixParticleSystem(psList[i], new Color(0.85f, 0.8f, 0.72f, 0.45f));
+            psList[i].Play();
+        }
     }
 
 
@@ -52,8 +69,17 @@ public class TankMovement : MonoBehaviour
 
     private void Update()
     {
-        // 🛠️ LINEA NUEVA: Fuerza a que las físicas NUNCA se apaguen
+        // Fuerza a que las físicas NUNCA se apaguen
         m_Rigidbody.isKinematic = false;
+
+        if (m_SpeedBoostTimer > 0f)
+        {
+            m_SpeedBoostTimer -= Time.deltaTime;
+            if (m_SpeedBoostTimer <= 0f)
+            {
+                m_SpeedMultiplier = 1f;
+            }
+        }
 
         if (m_PlayerNumber <= 2)
         {
@@ -79,20 +105,20 @@ public class TankMovement : MonoBehaviour
         // Play the correct audio clip based on whether or not the tank is moving and what audio is currently playing.
         if(Mathf.Abs (m_MovementInputValue) < 0.1f && Mathf.Abs (m_TurnInputValue) < 0.1f)
         {
-            if(m_MovementAudio.clip = m_EngineDriving) //Unity de ki m_MovementAudio bileşenine m_EngineDriving bileseninde ki ses dosyasi var ise
+            if(m_MovementAudio.clip == m_EngineDriving)
             {
-                m_MovementAudio.clip = m_EngineIdling; //MovementAudio bileşenine m_EngineIdling bileseninde ki ses dosyasini yükle
-                m_MovementAudio.pitch = Random.Range (m_OriginalPitch - m_PitchRange , m_OriginalPitch + m_PitchRange); // "m_OriginalPitch - m_PitchRange , m_OriginalPitch + m_PitchRange" degerleri arasindan rastgele bir deger al
-                m_MovementAudio.Play(); //Muzigi baslat
+                m_MovementAudio.clip = m_EngineIdling;
+                m_MovementAudio.pitch = Random.Range (m_OriginalPitch - m_PitchRange , m_OriginalPitch + m_PitchRange);
+                m_MovementAudio.Play();
             }
         }
         else
         {
-            if(m_MovementAudio.clip = m_EngineIdling) //Unity de ki m_MovementAudio bileşenine m_EngineIdling bileseninde ki ses dosyasi var ise
+            if(m_MovementAudio.clip == m_EngineIdling)
             {
-                m_MovementAudio.clip = m_EngineDriving; //MovementAudio bileşenine m_EngineIdling bileseninde ki ses dosyasini yükle
-                m_MovementAudio.pitch = Random.Range (m_OriginalPitch - m_PitchRange , m_OriginalPitch + m_PitchRange); // "m_OriginalPitch - m_PitchRange , m_OriginalPitch + m_PitchRange" degerleri arasindan rastgele bir deger al
-                m_MovementAudio.Play(); //Muzigi baslat
+                m_MovementAudio.clip = m_EngineDriving;
+                m_MovementAudio.pitch = Random.Range (m_OriginalPitch - m_PitchRange , m_OriginalPitch + m_PitchRange);
+                m_MovementAudio.Play();
             }
         }
     }
@@ -100,6 +126,9 @@ public class TankMovement : MonoBehaviour
 
     private void FixedUpdate()
     {
+        // Zero angular velocity to prevent uncontrolled spin
+        m_Rigidbody.angularVelocity = Vector3.zero;
+
         // Move and turn the tank.
         Move();
         Turn();
@@ -108,13 +137,8 @@ public class TankMovement : MonoBehaviour
 
     private void Move()
     {
-        // Cambiamos linearVelocity por velocity
-        Vector3 velocity = transform.forward * m_MovementInputValue * m_Speed;
-
-        // CORRECCIÓN AQUÍ: Cambiar m_Rigidbody.linearVelocity.y por m_Rigidbody.velocity.y
+        Vector3 velocity = transform.forward * m_MovementInputValue * (m_Speed * m_SpeedMultiplier);
         velocity.y = m_Rigidbody.velocity.y;
-
-        // CORRECCIÓN AQUÍ: Cambiar m_Rigidbody.linearVelocity por m_Rigidbody.velocity
         m_Rigidbody.velocity = velocity;
     }
 

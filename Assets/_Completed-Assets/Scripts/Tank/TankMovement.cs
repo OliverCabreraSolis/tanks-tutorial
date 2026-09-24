@@ -5,8 +5,8 @@ namespace Complete
     public class TankMovement : MonoBehaviour
     {
         public int m_PlayerNumber = 1;              // Used to identify which tank belongs to which player.  This is set by this tank's manager.
-        public float m_Speed = 12f;                 // How fast the tank moves forward and back.
-        public float m_TurnSpeed = 180f;            // How fast the tank turns in degrees per second.
+        public float m_Speed = 9.5f;                 // How fast the tank moves forward and back (calibrado a 9.5f para control táctico).
+        public float m_TurnSpeed = 145f;            // How fast the tank turns in degrees per second.
         public AudioSource m_MovementAudio;         // Reference to the audio source used to play engine sounds. NB: different to the shooting audio source.
         public AudioClip m_EngineIdling;            // Audio to play when the tank isn't moving.
         public AudioClip m_EngineDriving;           // Audio to play when the tank is moving.
@@ -28,8 +28,9 @@ namespace Complete
 
         private void OnEnable ()
         {
-            // When the tank is turned on, make sure it's not kinematic.
+            // When the tank is turned on, make sure it's not kinematic and freeze X/Z rotation.
             m_Rigidbody.isKinematic = false;
+            m_Rigidbody.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
 
             // Also reset the input values.
             m_MovementInputValue = 0f;
@@ -41,6 +42,7 @@ namespace Complete
             m_particleSystems = GetComponentsInChildren<ParticleSystem>();
             for (int i = 0; i < m_particleSystems.Length; ++i)
             {
+                MaterialHelper.FixParticleSystem(m_particleSystems[i], new Color(0.85f, 0.8f, 0.72f, 0.45f));
                 m_particleSystems[i].Play();
             }
         }
@@ -71,6 +73,14 @@ namespace Complete
 
 
         public bool m_IsBot = false;
+        private float m_SpeedMultiplier = 1f;
+        private float m_SpeedBoostTimer = 0f;
+
+        public void ApplySpeedBoost(float multiplier, float duration)
+        {
+            m_SpeedMultiplier = multiplier;
+            m_SpeedBoostTimer = duration;
+        }
 
         public void SetBotInput(float movement, float turn)
         {
@@ -80,12 +90,46 @@ namespace Complete
 
         private void Update ()
         {
+            if (m_SpeedBoostTimer > 0f)
+            {
+                m_SpeedBoostTimer -= Time.deltaTime;
+                if (m_SpeedBoostTimer <= 0f)
+                {
+                    m_SpeedMultiplier = 1f;
+                }
+            }
+
             if (!m_IsBot)
             {
-                if (m_PlayerNumber <= 2)
+                if (m_PlayerNumber == 1)
                 {
-                    m_MovementInputValue = Input.GetAxis (m_MovementAxisName);
-                    m_TurnInputValue = Input.GetAxis (m_TurnAxisName);
+                    float move = 0f;
+                    float turn = 0f;
+                    if (Input.GetKey(KeyCode.W)) move += 1f;
+                    if (Input.GetKey(KeyCode.S)) move -= 1f;
+                    if (Input.GetKey(KeyCode.D)) turn += 1f;
+                    if (Input.GetKey(KeyCode.A)) turn -= 1f;
+
+                    if (Mathf.Approximately(move, 0f)) move = Input.GetAxisRaw(m_MovementAxisName);
+                    if (Mathf.Approximately(turn, 0f)) turn = Input.GetAxisRaw(m_TurnAxisName);
+
+                    m_MovementInputValue = move;
+                    m_TurnInputValue = turn;
+                }
+                else if (m_PlayerNumber == 2)
+                {
+                    float move = 0f;
+                    float turn = 0f;
+                    if (Input.GetKey(KeyCode.UpArrow)) move += 1f;
+                    if (Input.GetKey(KeyCode.DownArrow)) move -= 1f;
+                    if (Input.GetKey(KeyCode.RightArrow)) turn += 1f;
+                    if (Input.GetKey(KeyCode.LeftArrow)) turn -= 1f;
+
+                    if (Mathf.Approximately(move, 0f)) move = Input.GetAxisRaw(m_MovementAxisName);
+                    if (Mathf.Approximately(turn, 0f)) turn = Input.GetAxisRaw(m_TurnAxisName);
+
+                    m_MovementInputValue = move;
+                    m_TurnInputValue = turn;
                 }
                 else if (m_PlayerNumber == 3)
                 {
@@ -133,6 +177,9 @@ namespace Complete
 
         private void FixedUpdate ()
         {
+            // Zero any residual angular velocity from impacts to prevent crazy spinning
+            m_Rigidbody.angularVelocity = Vector3.zero;
+
             // Adjust the rigidbodies position and orientation in FixedUpdate.
             Move ();
             Turn ();
@@ -141,18 +188,17 @@ namespace Complete
 
         private void Move ()
         {
-            // Create a vector in the direction the tank is facing with a magnitude based on the input, speed and the time between frames.
-            Vector3 movement = transform.forward * m_MovementInputValue * m_Speed * Time.deltaTime;
-
-            // Apply this movement to the rigidbody's position.
-            m_Rigidbody.MovePosition(m_Rigidbody.position + movement);
+            // Apply horizontal velocity aligned with tank forward direction, preserving vertical gravity for smooth slope following
+            Vector3 velocity = transform.forward * m_MovementInputValue * (m_Speed * m_SpeedMultiplier);
+            velocity.y = m_Rigidbody.velocity.y;
+            m_Rigidbody.velocity = velocity;
         }
 
 
         private void Turn ()
         {
-            // Determine the number of degrees to be turned based on the input, speed and time between frames.
-            float turn = m_TurnInputValue * m_TurnSpeed * Time.deltaTime;
+            // Determine the number of degrees to be turned based on the input, speed and fixedDeltaTime.
+            float turn = m_TurnInputValue * m_TurnSpeed * Time.fixedDeltaTime;
 
             // Make this into a rotation in the y axis.
             Quaternion turnRotation = Quaternion.Euler (0f, turn, 0f);

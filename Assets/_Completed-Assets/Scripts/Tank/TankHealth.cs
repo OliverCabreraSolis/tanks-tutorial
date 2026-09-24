@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace Complete
@@ -23,6 +23,7 @@ namespace Complete
         {
             // Instantiate the explosion prefab and get a reference to the particle system on it.
             m_ExplosionParticles = Instantiate (m_ExplosionPrefab).GetComponent<ParticleSystem> ();
+            MaterialHelper.FixParticleSystem(m_ExplosionParticles, new Color(1f, 0.55f, 0.1f, 0.95f));
 
             // Get a reference to the audio source on the instantiated prefab.
             m_ExplosionAudio = m_ExplosionParticles.GetComponent<AudioSource> ();
@@ -37,16 +38,64 @@ namespace Complete
             // When the tank is enabled, reset the tank's health and whether or not it's dead.
             m_CurrentHealth = m_StartingHealth;
             m_Dead = false;
+            m_HasShield = false;
+            if (m_ShieldVisual != null) m_ShieldVisual.SetActive(false);
 
             // Update the health slider's value and color.
             SetHealthUI();
         }
 
 
+        public bool m_HasShield = false;
+        private GameObject m_ShieldVisual;
+
+        public void ActivateShield()
+        {
+            m_HasShield = true;
+            if (m_ShieldVisual == null)
+            {
+                m_ShieldVisual = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                m_ShieldVisual.name = "PlasmaShield";
+                m_ShieldVisual.transform.SetParent(transform);
+                m_ShieldVisual.transform.localPosition = new Vector3(0, 0.8f, 0);
+                m_ShieldVisual.transform.localScale = new Vector3(2.8f, 2.4f, 2.8f);
+
+                // Disable collider on shield visual so it doesn't mess with physics
+                Collider col = m_ShieldVisual.GetComponent<Collider>();
+                if (col != null) Destroy(col);
+
+                Renderer r = m_ShieldVisual.GetComponent<Renderer>();
+                if (r != null)
+                {
+                    r.material = MaterialHelper.CreateMaterial(new Color(0.1f, 0.8f, 1f, 0.45f), 0.9f, true);
+                }
+            }
+            m_ShieldVisual.SetActive(true);
+            FloatingCombatText.Spawn(transform.position, "¡ESCUDO ACTIVADO!", Color.cyan, 1.2f);
+        }
+
+        public void Heal(float amount)
+        {
+            if (m_Dead) return;
+            m_CurrentHealth = Mathf.Min(m_StartingHealth, m_CurrentHealth + amount);
+            SetHealthUI();
+            FloatingCombatText.Spawn(transform.position, "+" + Mathf.RoundToInt(amount) + " HP", Color.green, 1.2f);
+        }
+
         public void TakeDamage (float amount)
         {
+            if (m_HasShield)
+            {
+                m_HasShield = false;
+                if (m_ShieldVisual != null) m_ShieldVisual.SetActive(false);
+                FloatingCombatText.Spawn(transform.position, "¡ESCUDO BLOQUEADO!", Color.cyan, 1.3f);
+                return;
+            }
+
             // Reduce current health by the amount of damage done.
             m_CurrentHealth -= amount;
+
+            FloatingCombatText.Spawn(transform.position, "-" + Mathf.RoundToInt(amount), Color.red, 1f);
 
             // Change the UI elements appropriately.
             SetHealthUI ();
