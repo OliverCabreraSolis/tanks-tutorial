@@ -239,10 +239,28 @@ public class EnemyTurret : MonoBehaviour
 
         FloatingCombatText.Spawn(transform.position, "¡FUEGO!", Color.red, 1.1f);
 
+        Vector3 fireDir = m_Muzzle.forward;
+        fireDir.y = 0f;
+        if (fireDir.sqrMagnitude < 0.0001f) fireDir = m_Head != null ? m_Head.forward : transform.forward;
+        else fireDir.Normalize();
+
+        Quaternion fireRot = Quaternion.LookRotation(fireDir, Vector3.up);
+
         if (m_ShellPrefab != null)
         {
-            Rigidbody shell = Instantiate(m_ShellPrefab, m_Muzzle.position, m_Muzzle.rotation);
-            shell.velocity = m_Muzzle.forward * 22f;
+            Rigidbody shell = Instantiate(m_ShellPrefab, m_Muzzle.position, fireRot);
+            shell.useGravity = false;
+            shell.drag = 0f;
+            shell.constraints = RigidbodyConstraints.FreezePositionY | RigidbodyConstraints.FreezeRotation;
+            shell.velocity = fireDir * 24f;
+
+            ShellExplosion exp = shell.GetComponent<ShellExplosion>();
+            if (exp != null) exp.m_Shooter = gameObject;
+            else
+            {
+                Complete.ShellExplosion cExp = shell.GetComponent<Complete.ShellExplosion>();
+                if (cExp != null) cExp.m_Shooter = gameObject;
+            }
         }
         else
         {
@@ -251,9 +269,12 @@ public class EnemyTurret : MonoBehaviour
             energyBall.transform.position = m_Muzzle.position;
             energyBall.transform.localScale = Vector3.one * 0.6f;
             Rigidbody rb = energyBall.AddComponent<Rigidbody>();
-            rb.velocity = m_Muzzle.forward * 25f;
+            rb.useGravity = false;
+            rb.drag = 0f;
+            rb.constraints = RigidbodyConstraints.FreezePositionY | RigidbodyConstraints.FreezeRotation;
+            rb.velocity = fireDir * 25f;
             energyBall.GetComponent<Renderer>().material.color = Color.red;
-            Destroy(energyBall, 2f);
+            Destroy(energyBall, 2.5f);
         }
     }
 

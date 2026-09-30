@@ -23,6 +23,10 @@ public class TankShooting : MonoBehaviour
 
     private void OnEnable() 
     {
+        if (m_FireTransform != null)
+        {
+            m_FireTransform.localRotation = Quaternion.identity;
+        }
         m_CurrentLaunchForce = m_MinLaunchForce;
         m_AimSlider.value = m_MinLaunchForce;
         if (m_LaserSight != null) m_LaserSight.enabled = true;
@@ -36,6 +40,8 @@ public class TankShooting : MonoBehaviour
     private void InitLaserSight()
     {
         if (m_LaserSight != null || m_FireTransform == null) return;
+
+        m_FireTransform.localRotation = Quaternion.identity;
 
         GameObject laserObj = new GameObject("LaserSight");
         laserObj.transform.SetParent(m_FireTransform, false);
@@ -73,16 +79,22 @@ public class TankShooting : MonoBehaviour
         m_LaserSight.enabled = true;
         Vector3 startPos = m_FireTransform.position;
         Vector3 dir = m_FireTransform.forward;
-        float maxDist = 32f;
-        Vector3 endPos = startPos + dir * maxDist;
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.0001f) dir = transform.forward;
+        else dir.Normalize();
 
-        Ray ray = new Ray(startPos + dir * 0.5f, dir);
+        float maxDist = 45f;
+        Vector3 endPos = startPos + dir * maxDist;
+        endPos.y = startPos.y;
+
+        Ray ray = new Ray(startPos, dir);
         RaycastHit hit;
         if (Physics.Raycast(ray, out hit, maxDist, ~LayerMask.GetMask("UI")))
         {
             if (!hit.transform.IsChildOf(transform))
             {
                 endPos = hit.point;
+                endPos.y = startPos.y;
             }
         }
 
@@ -93,7 +105,22 @@ public class TankShooting : MonoBehaviour
     private void Start()
     {
         m_FireButton = "Fire" + m_PlayerNumber; 
+        if (m_MinLaunchForce < 20f) m_MinLaunchForce = 22f;
+        if (m_MaxLaunchForce < 35f) m_MaxLaunchForce = 35f;
         m_ChargeSpeed = (m_MaxLaunchForce - m_MinLaunchForce) / m_MaxChargeTime;
+
+        if (m_AimSlider != null)
+        {
+            m_AimSlider.minValue = m_MinLaunchForce;
+            m_AimSlider.maxValue = m_MaxLaunchForce;
+            m_AimSlider.value = m_MinLaunchForce;
+        }
+
+        if (m_FireTransform != null)
+        {
+            m_FireTransform.localRotation = Quaternion.identity;
+        }
+
         InitLaserSight();
     }
 
@@ -164,28 +191,40 @@ public class TankShooting : MonoBehaviour
         Collider[] tankColliders = GetComponentsInChildren<Collider>();
         float forwardOffset = 1.0f;
 
+        Vector3 fireDir = m_FireTransform.forward;
+        fireDir.y = 0f;
+        if (fireDir.sqrMagnitude < 0.0001f) fireDir = transform.forward;
+        else fireDir.Normalize();
+
+        Quaternion fireRot = Quaternion.LookRotation(fireDir, Vector3.up);
+
         if (m_TripleShotCount > 0)
         {
             m_TripleShotCount--;
 
             // Center shell
-            Vector3 centerPos = m_FireTransform.position + m_FireTransform.forward * forwardOffset;
-            Rigidbody shellCenter = Instantiate(m_Shell, centerPos, m_FireTransform.rotation);
-            shellCenter.velocity = m_CurrentLaunchForce * m_FireTransform.forward;
+            Vector3 centerPos = m_FireTransform.position + fireDir * forwardOffset;
+            centerPos.y = m_FireTransform.position.y;
+            Rigidbody shellCenter = Instantiate(m_Shell, centerPos, fireRot);
+            shellCenter.velocity = fireDir * m_CurrentLaunchForce;
             SetupShell(shellCenter, tankColliders);
 
             // Left shell (-15 deg)
-            Quaternion leftRot = m_FireTransform.rotation * Quaternion.Euler(0, -15f, 0);
-            Vector3 leftPos = m_FireTransform.position + (leftRot * Vector3.forward) * forwardOffset;
+            Quaternion leftRot = fireRot * Quaternion.Euler(0, -15f, 0);
+            Vector3 leftDir = leftRot * Vector3.forward;
+            Vector3 leftPos = m_FireTransform.position + leftDir * forwardOffset;
+            leftPos.y = m_FireTransform.position.y;
             Rigidbody shellLeft = Instantiate(m_Shell, leftPos, leftRot);
-            shellLeft.velocity = m_CurrentLaunchForce * (leftRot * Vector3.forward);
+            shellLeft.velocity = leftDir * m_CurrentLaunchForce;
             SetupShell(shellLeft, tankColliders);
 
             // Right shell (+15 deg)
-            Quaternion rightRot = m_FireTransform.rotation * Quaternion.Euler(0, 15f, 0);
-            Vector3 rightPos = m_FireTransform.position + (rightRot * Vector3.forward) * forwardOffset;
+            Quaternion rightRot = fireRot * Quaternion.Euler(0, 15f, 0);
+            Vector3 rightDir = rightRot * Vector3.forward;
+            Vector3 rightPos = m_FireTransform.position + rightDir * forwardOffset;
+            rightPos.y = m_FireTransform.position.y;
             Rigidbody shellRight = Instantiate(m_Shell, rightPos, rightRot);
-            shellRight.velocity = m_CurrentLaunchForce * (rightRot * Vector3.forward);
+            shellRight.velocity = rightDir * m_CurrentLaunchForce;
             SetupShell(shellRight, tankColliders);
 
             // Prevent collision between the 3 shells so they do not detonate together
@@ -198,9 +237,10 @@ public class TankShooting : MonoBehaviour
         }
         else
         {
-            Vector3 spawnPos = m_FireTransform.position + m_FireTransform.forward * forwardOffset;
-            Rigidbody shellInstance = Instantiate (m_Shell, spawnPos, m_FireTransform.rotation);
-            shellInstance.velocity = m_CurrentLaunchForce * m_FireTransform.forward;
+            Vector3 spawnPos = m_FireTransform.position + fireDir * forwardOffset;
+            spawnPos.y = m_FireTransform.position.y;
+            Rigidbody shellInstance = Instantiate(m_Shell, spawnPos, fireRot);
+            shellInstance.velocity = fireDir * m_CurrentLaunchForce;
             SetupShell(shellInstance, tankColliders);
         }
 
@@ -213,6 +253,11 @@ public class TankShooting : MonoBehaviour
     private void SetupShell(Rigidbody shellRb, Collider[] tankColliders)
     {
         if (shellRb == null) return;
+
+        shellRb.useGravity = false;
+        shellRb.drag = 0f;
+        shellRb.constraints = RigidbodyConstraints.FreezePositionY | RigidbodyConstraints.FreezeRotation;
+
         Collider shellCol = shellRb.GetComponent<Collider>();
         if (shellCol != null && tankColliders != null)
         {
@@ -227,6 +272,14 @@ public class TankShooting : MonoBehaviour
         if (exp != null)
         {
             exp.m_Shooter = gameObject;
+        }
+        else
+        {
+            Complete.ShellExplosion compExp = shellRb.GetComponent<Complete.ShellExplosion>();
+            if (compExp != null)
+            {
+                compExp.m_Shooter = gameObject;
+            }
         }
     }
 }

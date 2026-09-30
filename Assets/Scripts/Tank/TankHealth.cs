@@ -19,6 +19,13 @@ public class TankHealth : MonoBehaviour
 
     private void Awake()
     {
+        BoxCollider box = GetComponent<BoxCollider>();
+        if (box != null)
+        {
+            box.center = new Vector3(box.center.x, 1.0f, box.center.z);
+            box.size = new Vector3(box.size.x, 2.0f, box.size.z);
+        }
+
         m_ExplosionParticles = Instantiate(m_ExplosionPrefab).GetComponent<ParticleSystem>();
         MaterialHelper.FixParticleSystem(m_ExplosionParticles, new Color(1f, 0.55f, 0.1f, 0.95f));
         m_ExplosionAudio = m_ExplosionParticles.GetComponent<AudioSource>();

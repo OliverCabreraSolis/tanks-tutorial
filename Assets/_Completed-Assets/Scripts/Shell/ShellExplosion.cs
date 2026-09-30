@@ -9,18 +9,36 @@ namespace Complete
         public AudioSource m_ExplosionAudio;                // Reference to the audio that will play on explosion.
         public float m_MaxDamage = 100f;                    // The amount of damage done if the explosion is centred on a tank.
         public float m_ExplosionForce = 1000f;              // The amount of force added to a tank at the centre of the explosion.
-        public float m_MaxLifeTime = 2f;                    // The time in seconds before the shell is removed.
+        public float m_MaxLifeTime = 3.5f;                    // The time in seconds before the shell is removed.
         public float m_ExplosionRadius = 5f;                // The maximum distance away from the explosion tanks can be and are still affected.
 
         [HideInInspector] public GameObject m_Shooter;
+        private Rigidbody m_Rigidbody;
         private float m_SpawnTime;
 
         private void Awake()
         {
             m_SpawnTime = Time.time;
+            m_Rigidbody = GetComponent<Rigidbody>();
+            if (m_Rigidbody != null)
+            {
+                m_Rigidbody.useGravity = false;
+                m_Rigidbody.drag = 0f;
+                m_Rigidbody.constraints = RigidbodyConstraints.FreezePositionY | RigidbodyConstraints.FreezeRotation;
+            }
             if (m_ExplosionParticles != null)
             {
                 MaterialHelper.FixParticleSystem(m_ExplosionParticles, new Color(1f, 0.6f, 0.1f, 0.95f));
+            }
+        }
+
+        private void FixedUpdate()
+        {
+            if (m_Rigidbody != null)
+            {
+                Vector3 v = m_Rigidbody.velocity;
+                v.y = 0f;
+                m_Rigidbody.velocity = v;
             }
         }
 
@@ -33,6 +51,12 @@ namespace Complete
 
         private void OnTriggerEnter (Collider other)
         {
+            // Ignore power-up floating pickups so shells don't explode on them
+            if (other.GetComponent<PowerUpItem>() != null)
+            {
+                return;
+            }
+
             // If the shell collided directly with the shooter's own body right at the barrel exit, ignore it
             if (m_Shooter != null && (other.gameObject == m_Shooter || other.transform.IsChildOf(m_Shooter.transform)))
             {
